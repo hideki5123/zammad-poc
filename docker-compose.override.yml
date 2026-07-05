@@ -1,5 +1,5 @@
 # Replaces the upstream port mapping so the web UI is published on a single
-# interface (your VPN address) instead of 0.0.0.0.
+# interface (VPN IP, LAN IP, or 127.0.0.1) instead of 0.0.0.0.
 #
 # `!override` swaps the whole ports list instead of merging with it — without
 # it, the upstream 0.0.0.0:8080 publish would survive alongside this one.

@@ -1,12 +1,13 @@
-# zammad-tailscale-poc
+# zammad-poc
 
-[![validate](https://github.com/hideki5123/zammad-tailscale-poc/actions/workflows/validate.yml/badge.svg)](https://github.com/hideki5123/zammad-tailscale-poc/actions/workflows/validate.yml)
+[![validate](https://github.com/hideki5123/zammad-poc/actions/workflows/validate.yml/badge.svg)](https://github.com/hideki5123/zammad-poc/actions/workflows/validate.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Spin up a full [Zammad](https://zammad.org) helpdesk locally with Docker Compose,
-reachable **only from inside your VPN** (Tailscale by default) — no public
-exposure, no TLS, no OAuth apps. Meant for evaluating Zammad before committing
-to a production rollout.
+Spin up a full [Zammad](https://zammad.org) helpdesk locally with Docker Compose
+for evaluation, published on **a single network interface of your choice** —
+a VPN address, a LAN address, or localhost — instead of `0.0.0.0`. No public
+exposure, no TLS, no OAuth apps. Meant for trying Zammad before committing to
+a production rollout.
 
 日本語版は [README.ja.md](README.ja.md) をどうぞ。
 
@@ -20,10 +21,12 @@ so you keep getting upstream updates with a plain `git pull`.
 The overlay does exactly three things:
 
 - **Binds the web UI to one interface.** A `docker-compose.override.yml`
-  replaces upstream's `0.0.0.0:8080` publish with
-  `<your VPN IP>:<port>` using Compose's `ports: !override` — the
+  replaces upstream's `0.0.0.0:8080` publish with `<BIND_IP>:<port>` using
+  Compose's `ports: !override` — the
   [officially recommended](https://docs.zammad.org/en/latest/install/docker-compose.html)
-  way to customize the stack without touching its files.
+  way to customize the stack without touching its files. Whoever can route to
+  that IP (VPN peers, LAN hosts, or only you for `127.0.0.1`) can reach Zammad;
+  nobody else can.
 - **Seeds sane first-boot settings.** `ZAMMAD_FQDN` / `ZAMMAD_HTTP_TYPE` are
   set so cookies, WebSockets and generated links match the URL you actually
   browse (plain HTTP on a non-standard port).
@@ -37,29 +40,28 @@ container that migrates and seeds the database — is stock upstream.
 ## Requirements
 
 - Docker with Compose **v2.24.4+** (needed for `ports: !override`)
-- [Tailscale](https://tailscale.com/) up and running (or any VPN — pass your
-  interface IP by hand, see below)
+- An IP address to bind to: a VPN interface (WireGuard, Tailscale, …), a LAN
+  address, or `127.0.0.1`
 - ~4 GB free RAM (Elasticsearch included); `vm.max_map_count >= 262144`
   ([Elasticsearch requirement](https://www.elastic.co/guide/en/elasticsearch/reference/current/docker.html#_set_vm_max_map_count_to_at_least_262144))
 
 ## Quick start
 
 ```bash
-git clone https://github.com/hideki5123/zammad-tailscale-poc.git
-cd zammad-tailscale-poc
-./setup.sh            # clones upstream, writes .env (Tailscale IP autodetected)
-docker compose up -d  # first boot runs DB migrations — takes a minute or two
+git clone https://github.com/hideki5123/zammad-poc.git
+cd zammad-poc
+BIND_IP=192.168.1.20 ZAMMAD_HOST=192.168.1.20 ./setup.sh   # your interface IP + browser hostname
+docker compose up -d    # first boot runs DB migrations — takes a minute or two
 ```
 
-Then open `http://<your-magicdns-name>:8081` **from a device inside your
-tailnet** and walk through the Getting Started wizard (create the admin
+Then open `http://<ZAMMAD_HOST>:8081` from a device that can reach that
+interface, and walk through the Getting Started wizard (create the admin
 account — no email verification; the email channel step can be skipped).
 
-Not on Tailscale? Pass your VPN address explicitly:
-
-```bash
-BIND_IP=10.8.0.5 ZAMMAD_HOST=myhost.vpn.internal ./setup.sh
-```
+Convenience: if [Tailscale](https://tailscale.com/) is running and you omit
+the variables, `setup.sh` defaults `BIND_IP` to your Tailscale IPv4 and
+`ZAMMAD_HOST` to your MagicDNS name. That's just autodetection — nothing in
+the stack depends on Tailscale.
 
 ## Configuration
 
@@ -67,9 +69,9 @@ BIND_IP=10.8.0.5 ZAMMAD_HOST=myhost.vpn.internal ./setup.sh
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `BIND_IP` | your Tailscale IPv4 | The **only** interface the UI is published on |
+| `BIND_IP` | Tailscale IPv4 if present, else prompted | The **only** interface the UI is published on |
 | `ZAMMAD_UI_PORT` | `8081` | Host port for the web UI |
-| `ZAMMAD_FQDN` | MagicDNS name + port | Seeded into Zammad on **first boot only** |
+| `ZAMMAD_FQDN` | `ZAMMAD_HOST` + port | Seeded into Zammad on **first boot only** — use the exact host you type in the browser |
 | `ZAMMAD_HTTP_TYPE` | `http` | Keep `http` — see gotchas below |
 | `POSTGRES_PASS` | random | DB password, effective on **first boot only** |
 | `TZ` | host timezone | Container timezone |
@@ -111,9 +113,9 @@ git -C zammad-docker-compose pull && docker compose pull && docker compose up -d
 ## Scope
 
 This is an **evaluation setup**, deliberately not production-grade: plain
-HTTP (your VPN provides the transport security), no backups, no real mail
-delivery. For production, put a TLS-terminating reverse proxy in front,
-switch `http_type` to `https`, re-enable the backup service, and read the
+HTTP (bind to a trusted network), no backups, no real mail delivery. For
+production, put a TLS-terminating reverse proxy in front, switch `http_type`
+to `https`, re-enable the backup service, and read the
 [upstream docs](https://docs.zammad.org/en/latest/install/docker-compose.html).
 
 ## License
