@@ -1,0 +1,23 @@
+name: validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  compose-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bootstrap (no Tailscale in CI — pass the bind address explicitly)
+        run: BIND_IP=127.0.0.1 ZAMMAD_HOST=localhost ./setup.sh
+
+      - name: Validate merged compose config
+        run: docker compose config --quiet
+
+      - name: Assert the UI is published on the given interface only
+        run: |
+          docker compose config | grep -q 'host_ip: 127.0.0.1'
+          test "$(docker compose config | grep -c 'host_ip:')" = "1"

@@ -1,0 +1,5 @@
+# Contains the generated DB password and your private VPN addresses.
+.env
+
+# Cloned by setup.sh — not vendored (upstream is AGPL-3.0, tracked separately).
+zammad-docker-compose/

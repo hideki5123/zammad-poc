@@ -1,0 +1,10 @@
+# Replaces the upstream port mapping so the web UI is published on a single
+# interface (your VPN address) instead of 0.0.0.0.
+#
+# `!override` swaps the whole ports list instead of merging with it — without
+# it, the upstream 0.0.0.0:8080 publish would survive alongside this one.
+# Requires Docker Compose >= 2.24.4.
+services:
+  zammad-nginx:
+    ports: !override
+      - "${BIND_IP:?set BIND_IP in .env (run setup.sh)}:${ZAMMAD_UI_PORT:-8081}:${NGINX_PORT:-8080}"
